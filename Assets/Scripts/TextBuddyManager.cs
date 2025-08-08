@@ -47,9 +47,10 @@ public class TextBuddyManager : MonoBehaviour
         // 1. Create the configuration object with your specific keys
         var config = new TextBuddyConfig(
             gameApiIdKey: "YOUR_GAME_API_KEY_HERE",
-            apiBaseUrl: "https://your-api-url.com/v1",
+            apiBaseUrl: "https://52ae07c4f404.ngrok-free.app",
             textBuddyPhoneNumber: "+359123456789",
-            enableDebugLogging: true // Set to true for development
+            enableDebugLogging: true, // Set to true for development
+            useRealApi: true
         );
 
         // 2. Create the main SDK client instance
@@ -112,7 +113,7 @@ public class TextBuddyManager : MonoBehaviour
         if (TextBuddy != null)
         {
             UpdateStatus("Opening SMS app for registration...");
-            TextBuddy.Register();
+            TextBuddy.Register().ContinueWith(x=> Debug.Log("Done"));
         }
         else
         {
