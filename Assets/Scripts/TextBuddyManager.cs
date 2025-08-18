@@ -46,9 +46,9 @@ public class TextBuddyManager : MonoBehaviour
 
         // 1. Create the configuration object with your specific keys
         var config = new TextBuddyConfig(
-            gameApiIdKey: "YOUR_GAME_API_KEY_HERE",
-            apiBaseUrl: "https://52ae07c4f404.ngrok-free.app",
-            textBuddyPhoneNumber: "+359123456789",
+            gameApiIdKey: "your-game-api-key-here",
+            apiBaseUrl: "http://127.0.0.1:3000",
+            textBuddyPhoneNumber: "+12065551234",
             enableDebugLogging: true, // Set to true for development
             useRealApi: true
         );
