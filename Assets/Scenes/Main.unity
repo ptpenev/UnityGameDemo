@@ -2288,7 +2288,7 @@ MonoBehaviour:
   enableDebugLogging: 1
   useRealApi: 1
   statusText: {fileID: 616223280}
-  logScrollRect: {fileID: 0}
+  logScrollRect: {fileID: 1921782623}
   maxLogEntries: 100
   showTimestamps: 1
   autoScrollToBottom: 1
