@@ -47,7 +47,7 @@ public class TextBuddyManager : MonoBehaviour
         // 1. Create the configuration object with your specific keys
         var config = new TextBuddyConfig(
             gameApiIdKey: "your-game-api-key-here",
-            apiBaseUrl: "http://127.0.0.1:3000",
+            apiBaseUrl: "https://7712d594b052.ngrok-free.app",
             textBuddyPhoneNumber: "+12065551234",
             enableDebugLogging: true, // Set to true for development
             useRealApi: true
@@ -179,7 +179,7 @@ public class TextBuddyManager : MonoBehaviour
         {
             if (result.IsSuccess)
             {
-                UpdateStatus($"SUCCESS: Token is currently {(result.Value ? "VALID" : "INVALID")}.");
+                UpdateStatus($"SUCCESS: {result.Value} - Token is currently {(result.Value ? "VALID" : "INVALID")}.");
             }
             else
             {
