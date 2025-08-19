@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
 using TextBuddySDK;
 using TextBuddySDK.Configuration;
 using TextBuddySDK.Domain.ValueObjects;
-using UnityEngine;
-using System;
 using TMPro; // Use TextMeshPro
+using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Manages the TextBuddy SDK initialization and provides simple,
@@ -17,17 +19,45 @@ public class TextBuddyManager : MonoBehaviour
     // This will hold our SDK client.
     public TextBuddyClient TextBuddy { get; private set; }
 
+    [Header("TextBuddy Configuration")]
+    [Tooltip("Your unique game API key provided by TextBuddy.")]
+    [SerializeField] private string gameApiIdKey = "your-game-api-key-here";
+
+    [Tooltip("The base URL for the TextBuddy API (include https://).")]
+    [SerializeField] private string apiBaseUrl = "https://7712d594b052.ngrok-free.app";
+
+    [Tooltip("The phone number that TextBuddy uses to send SMS messages.")]
+    [SerializeField] private string textBuddyPhoneNumber = "+12065551234";
+
+    [Tooltip("Enable debug logging for development purposes.")]
+    [SerializeField] private bool enableDebugLogging = true;
+
+    [Tooltip("Set to true to use the real API, false to use mock/test mode.")]
+    [SerializeField] private bool useRealApi = true;
+
     [Header("UI References")]
     [Tooltip("Assign a TextMeshProUGUI element here to display status messages from the SDK.")]
     public TextMeshProUGUI statusText; // Assign this in the Unity Inspector
 
-    [Header("Testing")]
+    [Tooltip("Assign the ScrollRect component to enable auto-scrolling to the bottom.")]
+    public ScrollRect logScrollRect; // Optional: for auto-scrolling functionality
+
+    [Header("Logging Settings")]
+    [Tooltip("Maximum number of log entries to keep in the scrollable log.")]
+    [SerializeField] private int maxLogEntries = 100;
+
+    [Tooltip("Enable timestamps for each log entry.")]
+    [SerializeField] private bool showTimestamps = true;
+
+    [Tooltip("Auto-scroll to the bottom when new logs are added.")]
+    [SerializeField] private bool autoScrollToBottom = true;
     [Tooltip("The message to send when clicking the 'Send SMS' button.")]
     public string testSmsMessage = "Hello from my game, this is a test message!";
 
     // We need a place to store the token after the player successfully registers.
     private SMSToken _currentToken;
     private const string TokenPlayerPrefsKey = "TextBuddy_SmsToken";
+    private List<string> _logEntries = new List<string>();
 
     #region Unity Lifecycle Methods
 
@@ -44,13 +74,20 @@ public class TextBuddyManager : MonoBehaviour
 
         // --- This is the core SDK initialization ---
 
-        // 1. Create the configuration object with your specific keys
+        // Validate configuration before initializing
+        if (!ValidateConfiguration())
+        {
+            UpdateStatus("ERROR: Invalid TextBuddy configuration. Please check the settings in the Inspector.");
+            return;
+        }
+
+        // 1. Create the configuration object using the serialized values
         var config = new TextBuddyConfig(
-            gameApiIdKey: "your-game-api-key-here",
-            apiBaseUrl: "https://7712d594b052.ngrok-free.app",
-            textBuddyPhoneNumber: "+12065551234",
-            enableDebugLogging: true, // Set to true for development
-            useRealApi: true
+            gameApiIdKey: gameApiIdKey,
+            apiBaseUrl: apiBaseUrl,
+            textBuddyPhoneNumber: textBuddyPhoneNumber,
+            enableDebugLogging: enableDebugLogging,
+            useRealApi: useRealApi
         );
 
         // 2. Create the main SDK client instance
@@ -72,6 +109,76 @@ public class TextBuddyManager : MonoBehaviour
     {
         // Clean up the event subscription when the object is destroyed.
         Application.deepLinkActivated -= OnDeepLinkActivated;
+    }
+
+    #endregion
+
+    #region Configuration Validation
+
+    /// <summary>
+    /// Validates the TextBuddy configuration to ensure all required fields are set properly.
+    /// </summary>
+    private bool ValidateConfiguration()
+    {
+        bool isValid = true;
+
+        if (string.IsNullOrWhiteSpace(gameApiIdKey))
+        {
+            Debug.LogError("[TextBuddyManager] Game API Key is not set or still has the default value. Please set it in the Inspector.");
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            Debug.LogError("[TextBuddyManager] API Base URL is not set. Please set it in the Inspector.");
+            isValid = false;
+        }
+        else if (!apiBaseUrl.StartsWith("http://") && !apiBaseUrl.StartsWith("https://"))
+        {
+            Debug.LogError("[TextBuddyManager] API Base URL must start with 'http://' or 'https://'. Current value: " + apiBaseUrl);
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(textBuddyPhoneNumber))
+        {
+            Debug.LogError("[TextBuddyManager] TextBuddy Phone Number is not set. Please set it in the Inspector.");
+            isValid = false;
+        }
+        else if (!textBuddyPhoneNumber.StartsWith("+"))
+        {
+            Debug.LogError("[TextBuddyManager] TextBuddy Phone Number should start with '+' and include country code. Current value: " + textBuddyPhoneNumber);
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    #endregion
+
+    #region Public Configuration Access (Runtime Only)
+
+    /// <summary>
+    /// Updates the API base URL at runtime. Requires SDK reinitialization to take effect.
+    /// </summary>
+    public void UpdateApiBaseUrl(string newUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(newUrl))
+        {
+            apiBaseUrl = newUrl;
+            UpdateStatus($"API Base URL updated to: {newUrl}. Restart required for changes to take effect.");
+        }
+    }
+
+    /// <summary>
+    /// Gets the current configuration values for debugging purposes.
+    /// </summary>
+    public string GetCurrentConfiguration()
+    {
+        return $"Game API Key: {(string.IsNullOrWhiteSpace(gameApiIdKey) ? "Not Set" : "Set")}\n" +
+               $"API Base URL: {apiBaseUrl}\n" +
+               $"Phone Number: {textBuddyPhoneNumber}\n" +
+               $"Debug Logging: {enableDebugLogging}\n" +
+               $"Use Real API: {useRealApi}";
     }
 
     #endregion
@@ -113,7 +220,7 @@ public class TextBuddyManager : MonoBehaviour
         if (TextBuddy != null)
         {
             UpdateStatus("Opening SMS app for registration...");
-            TextBuddy.Register().ContinueWith(x=> Debug.Log("Done"));
+            TextBuddy.Register().ContinueWith(x => Debug.Log("Registration process initiated."));
         }
         else
         {
@@ -188,6 +295,14 @@ public class TextBuddyManager : MonoBehaviour
         });
     }
 
+    /// <summary>
+    /// Displays the current configuration in the status text for debugging.
+    /// </summary>
+    public void ShowCurrentConfiguration()
+    {
+        UpdateStatus($"Current Configuration:\n{GetCurrentConfiguration()}");
+    }
+
     #endregion
 
     #region Token Persistence
@@ -250,11 +365,85 @@ public class TextBuddyManager : MonoBehaviour
     /// </summary>
     private void UpdateStatus(string message)
     {
+        AddLogEntry(message);
+        Debug.Log($"[TextBuddyManager] {message}");
+    }
+
+    /// <summary>
+    /// Adds a new log entry to the scrollable log display.
+    /// </summary>
+    private void AddLogEntry(string message)
+    {
+        if (statusText == null) return;
+
+        // Create timestamp if enabled
+        string timestamp = showTimestamps ? $"[{DateTime.Now:HH:mm:ss}] " : "";
+        string logEntry = $"{timestamp}{message}";
+
+        // Add to our log entries list
+        _logEntries.Add(logEntry);
+
+        // Remove old entries if we exceed the maximum
+        while (_logEntries.Count > maxLogEntries)
+        {
+            _logEntries.RemoveAt(0);
+        }
+
+        // Update the display
+        statusText.text = string.Join("\n", _logEntries);
+
+        // Auto-scroll to bottom if enabled
+        if (autoScrollToBottom && logScrollRect != null)
+        {
+            StartCoroutine(ScrollToBottomNextFrame());
+        }
+    }
+
+    /// <summary>
+    /// Scrolls to the bottom of the log on the next frame (required for proper scrolling).
+    /// </summary>
+    private System.Collections.IEnumerator ScrollToBottomNextFrame()
+    {
+        yield return new WaitForEndOfFrame();
+        if (logScrollRect != null)
+        {
+            logScrollRect.verticalNormalizedPosition = 0f;
+        }
+    }
+
+    /// <summary>
+    /// Clears all log entries from the display.
+    /// </summary>
+    public void ClearLogs()
+    {
+        _logEntries.Clear();
         if (statusText != null)
         {
-            statusText.text = message;
+            statusText.text = "";
         }
-        Debug.Log($"[TextBuddyManager] {message}");
+        AddLogEntry("Logs cleared.");
+    }
+
+    /// <summary>
+    /// Manually scrolls to the bottom of the log.
+    /// </summary>
+    public void ScrollToBottom()
+    {
+        if (logScrollRect != null)
+        {
+            logScrollRect.verticalNormalizedPosition = 0f;
+        }
+    }
+
+    /// <summary>
+    /// Manually scrolls to the top of the log.
+    /// </summary>
+    public void ScrollToTop()
+    {
+        if (logScrollRect != null)
+        {
+            logScrollRect.verticalNormalizedPosition = 1f;
+        }
     }
 
     #endregion
